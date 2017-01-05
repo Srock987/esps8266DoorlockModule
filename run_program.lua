@@ -36,70 +36,44 @@ gpio.mode(led2, gpio.OUTPUT)
 srv=net.createServer(net.TCP,20)
 srv:listen(80,function(conn)
     conn:on("receive", function(client,request)
-        local guestsPath = "/guestlist";
-        local addGuestPath = "/addGuest";
-        local deleteGuestPath = "/deleteGuest";
+        local guestsPath = "/guestlist"
+        local addGuestPath = "/addGuest"
+        local deleteGuestPath = "/deleteGuest"
+        local doorStatePath = "/doorState"
         local paramsTable = get_http_req (request)
+        local uartWritten = false
 
 
         if paramsTable["PATH"]==guestsPath then
-            uart.write(0, "WIFI_TAG_GUESTLIST_REQUEST")
-            uart.on("data", "\r",
-                function(data)
-                print("receive from uart:", data)
-            local header = "HTTP/1.1 200 OK\r\n"     
-              .."Content-Type: application/json\r\n"
-              .."Content-Length: "
-              ..string.len(data).."\r\n"
-              .."\r\n"
-            client:send(header..data);
-            client:close();
-            collectgarbage();
-                if data=="quit\r" then
-                    uart.on("data") -- unregister callback function
-                    end
-            end, 0)
+            uart.write(0, "GST_LST")
+            uartWritten = true
+        elseif paramsTable["PATH"]==doorStatePath then
+            uart.write(0, "DOOR_STATE")
+            uartWritten = true
+        elseif paramsTable["PATH"]==addGuestPath then
+            uart.write(0, "A_GST\n"..paramsTable["BODY"])
+            uartWritten = true
+        elseif paramsTable["PATH"]==deleteGuestPath then
+            uart.write(0, "D_GST\n"..paramsTable["BODY"])
+            uartWritten = true
         end
 
-        
-        if paramsTable["PATH"]==addGuestPath then
-            print(paramsTable["BODY"])
-            uart.write(0, "WIFI_TAG_ADD_GUEST_REQUEST\n"..paramsTable["BODY"])
-            uart.on("data", "\r",
-                function(data)
---            local data = "{\"id\":4,\"name\":\"guest4\",\"key\":\"key4\"}";
-            local header = "HTTP/1.1 200 OK\r\n"     
-              .."Content-Type: application/json\r\n"
-              .."Content-Length: "
-              ..string.len(data).."\r\n"
-              .."\r\n"
-            print(data)
-            client:send(header..data);
-            client:close();
-            collectgarbage();
-            if data=="quit\r" then
-                    uart.on("data") -- unregister callback function
-                    end
-            end, 0)
-        end
-
-        if paramsTable["PATH"]==deleteGuestPath then
-            uart.write(0, "WIFI_TAG_DELETE_GUEST_REQUEST\n"..paramsTable["BODY"])
-            uart.on("data", "\r",
-                function(data)
-            local header = "HTTP/1.1 200 OK\r\n"     
-              .."Content-Type: application/json\r\n"
-              .."Content-Length: "
-              ..string.len(data).."\r\n"
-              .."\r\n"
-            print(data)
-            client:send(header..data);
-            client:close();
-            collectgarbage();
-            if data=="quit\r" then
-                    uart.on("data") -- unregister callback function
-                    end
-            end, 0)
+        if uartWritten then
+        uart.on("data", "\r",
+            function(data)
+        local header = "HTTP/1.1 200 OK\r\n"     
+          .."Content-Type: application/json\r\n"
+          .."Content-Length: "
+          ..string.len(data).."\r\n"
+          .."\r\n"
+        print(data)
+        client:send(header..data);
+        client:close();
+        collectgarbage();
+        if data=="quit\r" then
+                uart.on("data") -- unregister callback function
+                end
+        end, 0)
         end
 
     end)
